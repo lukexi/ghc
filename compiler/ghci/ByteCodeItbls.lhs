@@ -140,6 +140,8 @@ type ItblCodes = Either [Word8] [Word32]
 ptrToInt :: Ptr a -> Int
 ptrToInt (Ptr a#) = I# (addr2Int# a#)
 
+-- Invalidating the caches is not necessary here as libffi will take
+-- care of this for us while initializing the trampoline
 mkJumpToAddr :: DynFlags -> Ptr () -> ItblCodes
 mkJumpToAddr dflags a = case platformArch (targetPlatform dflags) of
     ArchSPARC ->
@@ -226,6 +228,20 @@ mkJumpToAddr dflags a = case platformArch (targetPlatform dflags) of
                  , 0x47ff041f      -- nop
                  , fromIntegral (w64 .&. 0x0000FFFF)
                  , fromIntegral ((w64 `shiftR` 32) .&. 0x0000FFFF) ]
+    
+    ArchARM { } ->
+        -- Generates Thumb sequence,
+        --      ldr r1, [pc, #0]
+        --      bx r1
+        -- 
+        -- which looks like:
+        --     00000000 <.addr-0x8>:
+        --     0:	4900        ldr    r1, [pc]      ; 8 <.addr>
+        --     4:	4708        bx     r1
+        let w32 = fromIntegral (ptrToInt a) :: Word32
+        in Left [ 0x49, 0x00
+                , 0x47, 0x08
+                , byte0 w32, byte1 w32, byte2 w32, byte3 w32]
 
     arch ->
         panic ("mkJumpToAddr not defined for " ++ show arch)

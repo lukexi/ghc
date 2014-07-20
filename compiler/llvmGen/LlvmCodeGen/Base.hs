@@ -119,7 +119,7 @@ llvmFunTy live = return . LMFunction =<< llvmFunSig' live (fsLit "a") Externally
 llvmFunSig :: LiveGlobalRegs ->  CLabel -> LlvmLinkageType -> LlvmM LlvmFunctionDecl
 llvmFunSig live lbl link = do
   lbl' <- strCLabel_llvm lbl
-  llvmFunSig' live lbl' link
+  llvmFunSig' live (lbl' `appendFS` fsLit "$def") link
 
 llvmFunSig' :: LiveGlobalRegs -> LMString -> LlvmLinkageType -> LlvmM LlvmFunctionDecl
 llvmFunSig' live lbl link
@@ -381,7 +381,7 @@ ghcInternalFunctions = do
     mk "newSpark" (llvmWord dflags) [i8Ptr, i8Ptr]
   where
     mk n ret args = do
-      let n' = fsLit n
+      let n' = fsLit n `appendFS` fsLit "$def"
           decl = LlvmFunctionDecl n' ExternallyVisible CC_Ccc ret
                                  FixedArgs (tysToParams args) Nothing
       renderLlvm $ ppLlvmFunctionDecl decl
@@ -441,11 +441,11 @@ getGlobalPtr llvmLbl = do
   let mkGlbVar lbl ty = LMGlobalVar lbl (LMPointer ty) Private Nothing Nothing
   case m_ty of
     -- Directly reference if we have seen it already
-    Just ty -> return $ mkGlbVar llvmLbl ty Global
+    Just ty -> return $ mkGlbVar (llvmLbl `appendFS` fsLit "$def") ty Global
     -- Otherwise use a forward alias of it
     Nothing -> do
       saveAlias llvmLbl
-      return $ mkGlbVar (llvmLbl `appendFS` fsLit "$alias") i8 Alias
+      return $ mkGlbVar llvmLbl i8 Alias
 
 -- | Generate definitions for aliases forward-referenced by @getGlobalPtr@.
 --
@@ -455,16 +455,19 @@ generateAliases :: LlvmM ([LMGlobal], [LlvmType])
 generateAliases = do
   delayed <- fmap uniqSetToList $ getEnv envAliases
   defss <- flip mapM delayed $ \lbl -> do
-    let var      ty = LMGlobalVar lbl (LMPointer ty) External Nothing Nothing Global
-        aliasLbl    = lbl `appendFS` fsLit "$alias"
-        aliasVar    = LMGlobalVar aliasLbl i8Ptr Private Nothing Nothing Alias
     -- If we have a definition, set the alias value using a
     -- cost. Otherwise, declare it as an undefined external symbol.
+    let defLbl    = lbl `appendFS` fsLit "$def"
     m_ty <- funLookup lbl
     case m_ty of
-      Just ty -> return [LMGlobal aliasVar $ Just $ LMBitc (LMStaticPointer (var ty)) i8Ptr]
-      Nothing -> return [LMGlobal (var i8) Nothing,
-                         LMGlobal aliasVar $ Just $ LMStaticPointer (var i8) ]
+      Just ty ->
+        let aliasVar = LMGlobalVar lbl i8Ptr Private Nothing Nothing Alias
+            var = LMGlobalVar defLbl (LMPointer ty) External Nothing Nothing Global
+        in return [] --[LMGlobal aliasVar $ Just $ LMBitc (LMStaticPointer var) i8Ptr]
+      Nothing ->
+        let var = LMGlobalVar lbl i8Ptr External Nothing Nothing Global
+        in return [LMGlobal var Nothing]
+
   -- Reset forward list
   modifyEnv $ \env -> env { envAliases = emptyUniqSet }
   return (concat defss, [])
@@ -489,4 +492,3 @@ generateAliases = do
 -- | Error function
 panic :: String -> a
 panic s = Outp.panic $ "LlvmCodeGen.Base." ++ s
-

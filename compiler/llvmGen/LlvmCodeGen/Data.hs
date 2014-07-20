@@ -39,15 +39,15 @@ genLlvmData (sec, Statics lbl xs) = do
     let types   = map getStatType static
 
         strucTy = LMStruct types
-        alias   = LMAlias ((label `appendFS` structStr), strucTy)
+        tyAlias = LMAlias ((label `appendFS` structStr), strucTy)
 
-        struct         = Just $ LMStaticStruc static alias
+        struct         = Just $ LMStaticStruc static tyAlias
         link           = if (externallyVisibleCLabel lbl)
                             then ExternallyVisible else Internal
         const          = if isSecConstant sec then Constant else Global
-        glob           = LMGlobalVar label alias link Nothing Nothing const
+        glob           = LMGlobalVar label tyAlias link Nothing Nothing const
 
-    return ([LMGlobal glob struct], [alias])
+    return ([LMGlobal glob struct], [tyAlias])
 
 -- | Should a data in this section be considered constant
 isSecConstant :: Section -> Bool

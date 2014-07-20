@@ -121,7 +121,22 @@ cmmDataLlvmGens statics
            regGlobal _  = return ()
        mapM_ regGlobal (concat gss)
 
-       renderLlvm $ pprLlvmData (concat gss, concat tss)
+       -- Here we take each definition, rename it with a `$def` suffix, and produce
+       -- an associated alias defining the original name
+       let updateLbl (LMGlobal (LMGlobalVar l ty linkage section align const) val) =
+               [ LMGlobal var val
+               , LMGlobal (LMGlobalVar l (LMPointer i8Ptr) linkage section align Alias)
+                          (Just $ LMBitc (LMStaticPointer varPtr) i8Ptr)
+               ]
+             where
+               l' = l `appendFS` fsLit "$def"
+               var = LMGlobalVar l' ty linkage section  align const
+               varPtr = LMGlobalVar l' (LMPointer ty) linkage section align const
+               i8Ptr = LMPointer $ LMInt 8
+           updateLbl glbl = [glbl]
+           gss' = concatMap updateLbl $ concat gss
+
+       renderLlvm $ pprLlvmData (gss', concat tss)
 
 -- | Complete LLVM code generation phase for a single top-level chunk of Cmm.
 cmmLlvmGen ::RawCmmDecl -> LlvmM ()

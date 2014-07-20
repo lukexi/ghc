@@ -119,7 +119,7 @@ llvmFunTy live = return . LMFunction =<< llvmFunSig' live (fsLit "a") Externally
 llvmFunSig :: LiveGlobalRegs ->  CLabel -> LlvmLinkageType -> LlvmM LlvmFunctionDecl
 llvmFunSig live lbl link = do
   lbl' <- strCLabel_llvm lbl
-  llvmFunSig' live (lbl' `appendFS` fsLit "$def") link
+  llvmFunSig' live lbl' link
 
 llvmFunSig' :: LiveGlobalRegs -> LMString -> LlvmLinkageType -> LlvmM LlvmFunctionDecl
 llvmFunSig' live lbl link

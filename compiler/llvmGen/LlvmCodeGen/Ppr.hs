@@ -104,8 +104,27 @@ pprLlvmCmmDecl count (CmmProc mb_info entry_lbl live (ListGraph blks))
                                 LlvmBlock (getUnique id) stmts) blks
 
        fun <- mkLlvmFunc live lbl' link  sec' lmblocks
+       let name = decName $ funcDecl fun
+           defName = name `appendFS` fsLit "$def"
+           funcDecl' = (funcDecl fun) { decName = defName }
+           fun' = fun { funcDecl = funcDecl' }
+           funTy = LMFunction funcDecl'
+           funVar = LMGlobalVar name 
+                                (LMPointer funTy)
+                                (funcLinkage funcDecl')
+                                Nothing
+                                Nothing
+                                Alias
+           defVar = LMGlobalVar defName
+                                (LMPointer funTy) 
+                                (funcLinkage funcDecl')
+                                (funcSect fun)
+                                (funcAlign funcDecl')
+                                Alias
+           alias = LMGlobal funVar
+                            (Just $ LMBitc (LMStaticPointer defVar) (LMPointer $ LMInt 8))
 
-       return (idoc $+$ ppLlvmFunction fun, ivar)
+       return (ppLlvmGlobal alias $+$ idoc $+$ ppLlvmFunction fun', ivar)
 
 
 -- | Pretty print CmmStatic

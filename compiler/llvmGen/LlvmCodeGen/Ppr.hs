@@ -20,7 +20,6 @@ import Platform
 import FastString
 import Outputable
 import Unique
-import Debug.Trace
 
 
 -- ----------------------------------------------------------------------------
@@ -142,7 +141,6 @@ pprInfoTable count info_lbl stat
                  gv = LMGlobalVar ilabel ty l sec (llvmInfAlign dflags) c
                  v = if l == Internal then [gv] else []
              funInsert ilabel ty
-             traceShow ("info", ilabel) $ return ()
              return (LMGlobal gv d, v)
            setSection v = return (v,[])
 

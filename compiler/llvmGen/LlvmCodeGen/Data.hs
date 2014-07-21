@@ -18,8 +18,6 @@ import Cmm
 
 import FastString
 import qualified Outputable
-       
-import Debug.Trace
 
 -- ----------------------------------------------------------------------------
 -- * Constants
@@ -38,7 +36,6 @@ genLlvmData :: (Section, CmmStatics) -> LlvmM LlvmData
 genLlvmData (sec, Statics lbl xs) = do
     label <- strCLabel_llvm lbl
     static <- mapM genData xs
-    traceShow ("genLlvmData", label) $ return ()
     let types   = map getStatType static
 
         strucTy = LMStruct types

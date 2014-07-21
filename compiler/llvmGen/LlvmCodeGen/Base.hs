@@ -472,6 +472,8 @@ generateExternDecls = do
   modifyEnv $ \env -> env { envAliases = emptyUniqSet }
   return (concat defss, [])
 
+-- | Here we take a global variable definition, rename it with a
+-- @$def@ suffix, and generate the appropriate alias.
 aliasify :: LMGlobal -> LlvmM [LMGlobal]
 aliasify (LMGlobal var val) =
     let i8Ptr = LMPointer (LMInt 8)

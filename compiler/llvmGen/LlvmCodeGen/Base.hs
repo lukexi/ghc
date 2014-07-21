@@ -455,7 +455,6 @@ getGlobalPtr llvmLbl = do
 generateAliases :: LlvmM ([LMGlobal], [LlvmType])
 generateAliases = do
   delayed <- fmap uniqSetToList $ getEnv envAliases
-  liftIO $ print delayed
   defss <- flip mapM delayed $ \lbl -> do
     -- If we have a definition, set the alias value using a
     -- cost. Otherwise, declare it as an undefined external symbol.

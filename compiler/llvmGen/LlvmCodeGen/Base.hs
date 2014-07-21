@@ -33,6 +33,7 @@ module LlvmCodeGen.Base (
         strCLabel_llvm, strDisplayName_llvm, strProcedureName_llvm,
         getGlobalPtr, generateAliases,
 
+        aliasify,
     ) where
 
 #include "HsVersions.h"
@@ -454,6 +455,7 @@ getGlobalPtr llvmLbl = do
 generateAliases :: LlvmM ([LMGlobal], [LlvmType])
 generateAliases = do
   delayed <- fmap uniqSetToList $ getEnv envAliases
+  liftIO $ print delayed
   defss <- flip mapM delayed $ \lbl -> do
     -- If we have a definition, set the alias value using a
     -- cost. Otherwise, declare it as an undefined external symbol.
@@ -471,6 +473,21 @@ generateAliases = do
   -- Reset forward list
   modifyEnv $ \env -> env { envAliases = emptyUniqSet }
   return (concat defss, [])
+
+aliasify :: LMGlobal -> LlvmM [LMGlobal]
+aliasify (LMGlobal var val) =
+    let i8Ptr = LMPointer (LMInt 8)
+        LMGlobalVar lbl ty link sect align const = var
+
+        defLbl = lbl `appendFS` fsLit "$def"
+        defVar = LMGlobalVar defLbl ty link sect align const
+
+        defPtrVar = LMGlobalVar defLbl (LMPointer ty) link Nothing Nothing const
+        aliasVar = LMGlobalVar lbl (LMPointer i8Ptr) link Nothing Nothing Alias
+        aliasVal = LMBitc (LMStaticPointer defPtrVar) i8Ptr
+    in return [ LMGlobal defVar val
+              , LMGlobal aliasVar (Just aliasVal)
+              ]
 
 -- Note [Llvm Forward References]
 --

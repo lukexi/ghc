@@ -20,6 +20,7 @@ import Platform
 import FastString
 import Outputable
 import Unique
+import Debug.Trace
 
 
 -- ----------------------------------------------------------------------------
@@ -109,14 +110,14 @@ pprLlvmCmmDecl count (CmmProc mb_info entry_lbl live (ListGraph blks))
            funcDecl' = (funcDecl fun) { decName = defName }
            fun' = fun { funcDecl = funcDecl' }
            funTy = LMFunction funcDecl'
-           funVar = LMGlobalVar name 
+           funVar = LMGlobalVar name
                                 (LMPointer funTy)
-                                (funcLinkage funcDecl')
+                                External
                                 Nothing
                                 Nothing
                                 Alias
            defVar = LMGlobalVar defName
-                                (LMPointer funTy) 
+                                (LMPointer funTy)
                                 (funcLinkage funcDecl')
                                 (funcSect fun)
                                 (funcAlign funcDecl')
@@ -133,20 +134,25 @@ pprInfoTable count info_lbl stat
   = do (ldata, ltypes) <- genLlvmData (Text, stat)
 
        dflags <- getDynFlags
-       let setSection (LMGlobal (LMGlobalVar _ ty l _ _ c) d) = do
+       let setSection :: LMGlobal -> LlvmM (LMGlobal, [LlvmVar])
+           setSection (LMGlobal (LMGlobalVar _ ty l _ _ c) d) = do
              lbl <- strCLabel_llvm info_lbl
              let sec = mkLayoutSection count
                  ilabel = lbl `appendFS` fsLit iTableSuf
                  gv = LMGlobalVar ilabel ty l sec (llvmInfAlign dflags) c
                  v = if l == Internal then [gv] else []
              funInsert ilabel ty
+             traceShow ("info", ilabel) $ return ()
              return (LMGlobal gv d, v)
            setSection v = return (v,[])
 
-       (ldata', llvmUsed) <- setSection (last ldata)
-       if length ldata /= 1
-          then Outputable.panic "LlvmCodeGen.Ppr: invalid info table!"
-          else return (pprLlvmData ([ldata'], ltypes), llvmUsed)
+       (ldata', llvmUsed) <- unzip `fmap` mapM setSection ldata
+       ldata'' <- mapM aliasify ldata'
+       let modUsedLabel (LMGlobalVar name ty link sect align const) =
+             LMGlobalVar (name `appendFS` fsLit "$def") ty link sect align const
+           modUsedLabel v = v
+           llvmUsed' = map modUsedLabel $ concat llvmUsed
+       return (pprLlvmData (concat ldata'', ltypes), llvmUsed')
 
 
 -- | We generate labels for info tables by converting them to the same label

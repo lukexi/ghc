@@ -45,9 +45,11 @@ genLlvmData (sec, Statics lbl xs) = do
         link           = if (externallyVisibleCLabel lbl)
                             then ExternallyVisible else Internal
         const          = if isSecConstant sec then Constant else Global
-        glob           = LMGlobalVar label tyAlias link Nothing Nothing const
+        lblDef         = label `appendFS` fsLit "$def"
+        varDef         = LMGlobalVar lblDef tyAlias link Nothing Nothing const
+        globDef        = LMGlobal varDef struct
 
-    return ([LMGlobal glob struct], [tyAlias])
+    return ([globDef], [tyAlias])
 
 -- | Should a data in this section be considered constant
 isSecConstant :: Section -> Bool
@@ -134,4 +136,3 @@ genStaticLit (CmmHighStackMark)
 -- | Error Function
 panic :: String -> a
 panic s = Outputable.panic $ "LlvmCodeGen.Data." ++ s
-

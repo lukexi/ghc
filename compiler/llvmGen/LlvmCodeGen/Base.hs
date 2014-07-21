@@ -501,6 +501,51 @@ aliasify (LMGlobal var val) =
 -- these kind of situations, which we later tell LLVM to be either
 -- references to their actual local definitions (involving a cast) or
 -- an external reference. This obviously only works for pointers.
+--
+-- In particular when we encounter a reference to a symbol in a chunk of
+-- C-- there are three possible scenarios
+--
+--   1. We have already seen a definition for the referenced symbol. This
+--      means we already know its type.
+--
+--   2. We have not yet seen a definition but we find one later in this
+--      compilation unit. Since we want to be a good consumer of the
+--      C-- streamed to us from upstream, we don't know the type of the
+--      symbol at the time when we must emit the reference.
+--
+--   3. We have not yet seen a definition nor will we find one in this
+--      compilation unit. In this case the reference refers to an
+--      external symbol for which we do not know the type.
+--
+-- Let's consider case (2) for a moment: say we see a reference to
+-- the symbol @fooBar@ for which we have not seen a definition. As we
+-- do not know the symbol's type, we assume it is of type @i8*@ and emit
+-- the appropriate casts in @getSymbolPtr@. Later on, when we
+-- encounter the definition of @fooBar@ we emit it but with a modified
+-- name, @fooBar$def@ (which we'll call the definition symbol), to
+-- since we have already had to assume that the symbol @fooBar@
+-- is of type @i8*@. We then emit @fooBar@ itself as an alias
+-- of @fooBar$def@ with appropriate casts. This all happens in
+-- @aliasify@.
+--
+-- Case (3) is quite similar to (2): References are emitted assuming
+-- the referenced symbol is of type @i8*@. When we arrive at the end of
+-- the compilation unit and realize that the symbol is external, we emit
+-- an LLVM @external global@ declaration for the symbol @fooBar@
+-- (handled in @generateExternDecls@). This takes advantage of the
+-- fact that the aliases produced by @aliasify@ for exported symbols
+-- have external linkage and can therefore be used as normal symbols.
+--
+-- Historical note: As of release 3.5 LLVM does not allow aliases to
+-- refer to declarations. This the reason why aliases are produced at the
+-- point of definition instead of the point of usage, as was previously
+-- done. See #9142 for details.
+--
+-- Finally, case (1) is trival. As we already have a definition for
+-- and therefore know the type of the referenced symbol, we can do
+-- away with casting the alias to the desired type in @getSymbolPtr@
+-- and instead just emit a reference to the definition symbol directly.
+-- This is the @Just@ case in @getSymbolPtr@.
 
 -- ----------------------------------------------------------------------------
 -- * Misc

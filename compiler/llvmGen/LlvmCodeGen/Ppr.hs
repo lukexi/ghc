@@ -111,7 +111,7 @@ pprLlvmCmmDecl count (CmmProc mb_info entry_lbl live (ListGraph blks))
            funTy = LMFunction funcDecl'
            funVar = LMGlobalVar name
                                 (LMPointer funTy)
-                                External
+                                link
                                 Nothing
                                 Nothing
                                 Alias

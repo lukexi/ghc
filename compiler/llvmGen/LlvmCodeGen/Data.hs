@@ -18,6 +18,8 @@ import Cmm
 
 import FastString
 import qualified Outputable
+       
+import Debug.Trace
 
 -- ----------------------------------------------------------------------------
 -- * Constants
@@ -36,6 +38,7 @@ genLlvmData :: (Section, CmmStatics) -> LlvmM LlvmData
 genLlvmData (sec, Statics lbl xs) = do
     label <- strCLabel_llvm lbl
     static <- mapM genData xs
+    traceShow ("genLlvmData", label) $ return ()
     let types   = map getStatType static
 
         strucTy = LMStruct types
@@ -45,8 +48,7 @@ genLlvmData (sec, Statics lbl xs) = do
         link           = if (externallyVisibleCLabel lbl)
                             then ExternallyVisible else Internal
         const          = if isSecConstant sec then Constant else Global
-        lblDef         = label `appendFS` fsLit "$def"
-        varDef         = LMGlobalVar lblDef tyAlias link Nothing Nothing const
+        varDef         = LMGlobalVar label tyAlias link Nothing Nothing const
         globDef        = LMGlobal varDef struct
 
     return ([globDef], [tyAlias])

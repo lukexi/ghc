@@ -33,7 +33,6 @@ import Control.Monad ( when )
 import Data.IORef ( writeIORef )
 import Data.Maybe ( fromMaybe, catMaybes )
 import System.IO
-import Debug.Trace
 
 -- -----------------------------------------------------------------------------
 -- | Top-level of the LLVM Code generator
@@ -98,7 +97,6 @@ llvmGroupLlvmGens cmm = do
                          Nothing                   -> l
                          Just (Statics info_lbl _) -> info_lbl
               lml <- strCLabel_llvm l'
-              traceShow ("llvmGroupLlvmGens", lml) $ return ()
               funInsert lml =<< llvmFunTy live
               return Nothing
         cdata <- fmap catMaybes $ mapM split cmm
@@ -119,7 +117,7 @@ cmmDataLlvmGens statics
        let (gss, tss) = unzip lmdatas
 
        let regGlobal (LMGlobal (LMGlobalVar l ty _ _ _ _) _)
-                        = traceShow ("cmmDataLlvmGens", l) $ funInsert l ty
+                        = funInsert l ty
            regGlobal _  = return ()
        mapM_ regGlobal (concat gss)
        gss' <- mapM aliasify $ concat gss

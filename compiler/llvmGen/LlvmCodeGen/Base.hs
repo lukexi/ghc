@@ -31,7 +31,7 @@ module LlvmCodeGen.Base (
         llvmPtrBits, mkLlvmFunc, tysToParams,
 
         strCLabel_llvm, strDisplayName_llvm, strProcedureName_llvm,
-        getGlobalPtr, generateAliases,
+        getGlobalPtr, generateExternDecls,
 
         aliasify,
     ) where
@@ -452,19 +452,18 @@ getGlobalPtr llvmLbl = do
 --
 -- Must be called at a point where we are sure that no new global definitions
 -- will be generated anymore!
-generateAliases :: LlvmM ([LMGlobal], [LlvmType])
-generateAliases = do
+generateExternDecls :: LlvmM ([LMGlobal], [LlvmType])
+generateExternDecls = do
   delayed <- fmap uniqSetToList $ getEnv envAliases
   defss <- flip mapM delayed $ \lbl -> do
-    -- If we have a definition, set the alias value using a
-    -- cost. Otherwise, declare it as an undefined external symbol.
-    let defLbl    = lbl `appendFS` fsLit "$def"
     m_ty <- funLookup lbl
     case m_ty of
-      Just ty ->
-        let aliasVar = LMGlobalVar lbl i8Ptr Private Nothing Nothing Alias
-            var = LMGlobalVar defLbl (LMPointer ty) External Nothing Nothing Global
-        in return [] --[LMGlobal aliasVar $ Just $ LMBitc (LMStaticPointer var) i8Ptr]
+      -- If we have a definition we've already emitted the proper aliases
+      -- when the symbol itself was emitted by @aliasify@
+      Just _ -> return []
+
+      -- If we don't have a definition this is an external symbol and we
+      -- need to emit a declaration
       Nothing ->
         let var = LMGlobalVar lbl i8Ptr External Nothing Nothing Global
         in return [LMGlobal var Nothing]

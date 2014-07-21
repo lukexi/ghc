@@ -81,7 +81,7 @@ llvmCodeGen' cmm_stream
         _ <- Stream.collect llvmStream
 
         -- Declare aliases for forward references
-        renderLlvm . pprLlvmData =<< generateAliases
+        renderLlvm . pprLlvmData =<< generateExternDecls
 
         -- Postamble
         cmmUsedLlvmGens

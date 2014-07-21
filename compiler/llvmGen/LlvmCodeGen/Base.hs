@@ -503,12 +503,12 @@ aliasify (LMGlobal var val) =
 -- an external reference. This obviously only works for pointers.
 --
 -- In particular when we encounter a reference to a symbol in a chunk of
--- C-- there are three possible scenarios
+-- C-- there are three possible scenarios,
 --
 --   1. We have already seen a definition for the referenced symbol. This
 --      means we already know its type.
 --
---   2. We have not yet seen a definition but we find one later in this
+--   2. We have not yet seen a definition but we will find one later in this
 --      compilation unit. Since we want to be a good consumer of the
 --      C-- streamed to us from upstream, we don't know the type of the
 --      symbol at the time when we must emit the reference.

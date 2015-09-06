@@ -3781,6 +3781,22 @@ typedef
 #define MYIMAGE_REL_I386_DIR32           0x0006
 #define MYIMAGE_REL_I386_REL32           0x0014
 
+/* From PE spec doc, section 3.1 */
+#define IMAGE_SCN_ALIGN_1BYTES     0x00100000
+#define IMAGE_SCN_ALIGN_2BYTES     0x00200000
+#define IMAGE_SCN_ALIGN_4BYTES     0x00300000
+#define IMAGE_SCN_ALIGN_8BYTES     0x00400000
+#define IMAGE_SCN_ALIGN_16BYTES    0x00500000
+#define IMAGE_SCN_ALIGN_32BYTES    0x00600000
+#define IMAGE_SCN_ALIGN_64BYTES    0x00700000
+#define IMAGE_SCN_ALIGN_128BYTES   0x00800000
+#define IMAGE_SCN_ALIGN_256BYTES   0x00900000
+#define IMAGE_SCN_ALIGN_512BYTES   0x00A00000
+#define IMAGE_SCN_ALIGN_1024BYTES  0x00B00000
+#define IMAGE_SCN_ALIGN_2048BYTES  0x00C00000
+#define IMAGE_SCN_ALIGN_4096BYTES  0x00D00000
+#define IMAGE_SCN_ALIGN_8192BYTES  0x00E00000
+
 static int verifyCOFFHeader ( COFF_header *hdr, pathchar *filename);
 
 /* We assume file pointer is right at the
@@ -4414,12 +4430,17 @@ ocGetNames_PEi386 ( ObjectCode* oc )
           /* ignore linker directive sections */
           && 0 != strcmp(".drectve", (char*)secname)
          ) {
-          IF_DEBUG(linker, debugBelch("Unknown PEi386 section name `%s' (while processing: %" PATH_FMT")", secname, oc->fileName));
+          IF_DEBUG(linker, debugBelch("Unknown PEi386 section name `%s' (while processing: %" PATH_FMT").", secname, oc->fileName));
+          IF_DEBUG(linker, debugBelch("Attempt will be made to load section `%s` anyway as SECTIONKIND_CODE_OR_RODATA", secname));
+          kind = SECTIONKIND_CODE_OR_RODATA;
       }
 
       if (kind != SECTIONKIND_OTHER && end >= start) {
-          if ((((size_t)(start)) % 4) != 0) {
-              errorBelch("Misaligned section %s: %p", (char*)secname, start);
+          /* Check if aligned by 4 by looking in the COFF Section header flag that we're not aligned by 1 or 2 */
+          UInt32 alignmentFlags = sectab_i->Characteristics & 0xF00000;
+
+          if (alignmentFlags == IMAGE_SCN_ALIGN_1BYTES || alignmentFlags == IMAGE_SCN_ALIGN_2BYTES) {
+              errorBelch("Misaligned section %s: %p. Flags: %d", (char*)secname, start, alignmentFlags);
               stgFree(secname);
               return 0;
           }
@@ -4732,8 +4753,16 @@ ocResolve_PEi386 ( ObjectCode* oc )
                *(UInt32 *)pP = ((UInt32)S) + A - ((UInt32)(size_t)pP) - 4;
                break;
 #elif defined(x86_64_HOST_ARCH)
-            case 2:  /* R_X86_64_32 */
-            case 17: /* R_X86_64_32S */
+            case 1: /* R_X86_64_64 - IMAGE_REL_AMD64_ADDR64 */
+               {
+                   UInt64 A;
+                   checkProddableBlock(oc, pP, 8);
+                   A = *(UInt64*)pP;
+                   *(UInt64 *)pP = ((UInt64)S) + ((UInt64)A);
+                   break;
+               }
+            case 2: /* R_X86_64_PC32 - IMAGE_REL_AMD64_ADDR32 */
+            case 3: /* R_X86_64_32S - IMAGE_REL_AMD64_ADDR32NB */
                {
                    size_t v;
                    v = S + ((size_t)A);
@@ -4743,14 +4772,14 @@ ocResolve_PEi386 ( ObjectCode* oc )
                        /* And retry */
                        v = S + ((size_t)A);
                        if (v >> 32) {
-                           barf("R_X86_64_32[S]: High bits are set in %zx for %s",
+                           barf("IMAGE_REL_AMD64_ADDR32[NB]: High bits are set in %zx for %s",
                                 v, (char *)symbol);
                        }
                    }
                    *(UInt32 *)pP = (UInt32)v;
                    break;
                }
-            case 4: /* R_X86_64_PC32 */
+            case 4: /* R_X86_64_PLT32 - IMAGE_REL_AMD64_REL32 */
                {
                    intptr_t v;
                    v = ((intptr_t)S) + ((intptr_t)(Int32)A) - ((intptr_t)pP) - 4;
@@ -4761,20 +4790,12 @@ ocResolve_PEi386 ( ObjectCode* oc )
                        /* And retry */
                        v = ((intptr_t)S) + ((intptr_t)(Int32)A) - ((intptr_t)pP) - 4;
                        if ((v >> 32) && ((-v) >> 32)) {
-                           barf("R_X86_64_PC32: High bits are set in %zx for %s",
+                           barf("IMAGE_REL_AMD64_REL32: High bits are set in %zx for %s",
                                 v, (char *)symbol);
                        }
                    }
                    *(UInt32 *)pP = (UInt32)v;
                    break;
-               }
-            case 1: /* R_X86_64_64 */
-               {
-                 UInt64 A;
-                 checkProddableBlock(oc, pP, 8);
-                 A = *(UInt64*)pP;
-                 *(UInt64 *)pP = ((UInt64)S) + ((UInt64)A);
-                 break;
                }
 #endif
             default:

@@ -3759,43 +3759,45 @@ typedef
 /* Note use of MYIMAGE_* since IMAGE_* are already defined in
    windows.h -- for the same purpose, but I want to know what I'm
    getting, here. */
-#define MYIMAGE_FILE_RELOCS_STRIPPED     0x0001
-#define MYIMAGE_FILE_EXECUTABLE_IMAGE    0x0002
-#define MYIMAGE_FILE_DLL                 0x2000
-#define MYIMAGE_FILE_SYSTEM              0x1000
-#define MYIMAGE_FILE_BYTES_REVERSED_HI   0x8000
-#define MYIMAGE_FILE_BYTES_REVERSED_LO   0x0080
-#define MYIMAGE_FILE_32BIT_MACHINE       0x0100
+#define MYIMAGE_FILE_RELOCS_STRIPPED        0x0001
+#define MYIMAGE_FILE_EXECUTABLE_IMAGE       0x0002
+#define MYIMAGE_FILE_DLL                    0x2000
+#define MYIMAGE_FILE_SYSTEM                 0x1000
+#define MYIMAGE_FILE_BYTES_REVERSED_HI      0x8000
+#define MYIMAGE_FILE_BYTES_REVERSED_LO      0x0080
+#define MYIMAGE_FILE_32BIT_MACHINE          0x0100
 
 /* From PE spec doc, section 5.4.2 and 5.4.4 */
-#define MYIMAGE_SYM_CLASS_EXTERNAL       2
-#define MYIMAGE_SYM_CLASS_STATIC         3
-#define MYIMAGE_SYM_UNDEFINED            0
+#define MYIMAGE_SYM_CLASS_EXTERNAL          2
+#define MYIMAGE_SYM_CLASS_STATIC            3
+#define MYIMAGE_SYM_UNDEFINED               0
 
 /* From PE spec doc, section 4.1 */
-#define MYIMAGE_SCN_CNT_CODE             0x00000020
-#define MYIMAGE_SCN_CNT_INITIALIZED_DATA 0x00000040
-#define MYIMAGE_SCN_LNK_NRELOC_OVFL      0x01000000
+#define MYIMAGE_SCN_CNT_CODE                0x00000020
+#define MYIMAGE_SCN_CNT_INITIALIZED_DATA    0x00000040
+#define MYIMAGE_SCN_CNT_UNINITIALIZED_DATA 0x00000080
+#define MYIMAGE_SCN_LNK_COMDAT              0x00001000
+#define MYIMAGE_SCN_LNK_NRELOC_OVFL         0x01000000
 
 /* From PE spec doc, section 5.2.1 */
-#define MYIMAGE_REL_I386_DIR32           0x0006
-#define MYIMAGE_REL_I386_REL32           0x0014
+#define MYIMAGE_REL_I386_DIR32              0x0006
+#define MYIMAGE_REL_I386_REL32              0x0014
 
 /* From PE spec doc, section 3.1 */
-#define IMAGE_SCN_ALIGN_1BYTES     0x00100000
-#define IMAGE_SCN_ALIGN_2BYTES     0x00200000
-#define IMAGE_SCN_ALIGN_4BYTES     0x00300000
-#define IMAGE_SCN_ALIGN_8BYTES     0x00400000
-#define IMAGE_SCN_ALIGN_16BYTES    0x00500000
-#define IMAGE_SCN_ALIGN_32BYTES    0x00600000
-#define IMAGE_SCN_ALIGN_64BYTES    0x00700000
-#define IMAGE_SCN_ALIGN_128BYTES   0x00800000
-#define IMAGE_SCN_ALIGN_256BYTES   0x00900000
-#define IMAGE_SCN_ALIGN_512BYTES   0x00A00000
-#define IMAGE_SCN_ALIGN_1024BYTES  0x00B00000
-#define IMAGE_SCN_ALIGN_2048BYTES  0x00C00000
-#define IMAGE_SCN_ALIGN_4096BYTES  0x00D00000
-#define IMAGE_SCN_ALIGN_8192BYTES  0x00E00000
+#define MYIMAGE_SCN_ALIGN_1BYTES            0x00100000
+#define MYIMAGE_SCN_ALIGN_2BYTES            0x00200000
+#define MYIMAGE_SCN_ALIGN_4BYTES            0x00300000
+#define MYIMAGE_SCN_ALIGN_8BYTES            0x00400000
+#define MYIMAGE_SCN_ALIGN_16BYTES           0x00500000
+#define MYIMAGE_SCN_ALIGN_32BYTES           0x00600000
+#define MYIMAGE_SCN_ALIGN_64BYTES           0x00700000
+#define MYIMAGE_SCN_ALIGN_128BYTES          0x00800000
+#define MYIMAGE_SCN_ALIGN_256BYTES          0x00900000
+#define MYIMAGE_SCN_ALIGN_512BYTES          0x00A00000
+#define MYIMAGE_SCN_ALIGN_1024BYTES         0x00B00000
+#define MYIMAGE_SCN_ALIGN_2048BYTES         0x00C00000
+#define MYIMAGE_SCN_ALIGN_4096BYTES         0x00D00000
+#define MYIMAGE_SCN_ALIGN_8192BYTES         0x00E00000
 
 static int verifyCOFFHeader ( COFF_header *hdr, pathchar *filename);
 
@@ -4379,30 +4381,12 @@ ocGetNames_PEi386 ( ObjectCode* oc )
 
       IF_DEBUG(linker, debugBelch("section name = %s\n", secname ));
 
-#     if 0
-      /* I'm sure this is the Right Way to do it.  However, the
-         alternative of testing the sectab_i->Name field seems to
-         work ok with Cygwin.
-
-         EZY: We should strongly consider using this style, because
-         it lets us pick up sections that should be added (e.g.
-         for a while the linker did not work due to missing .eh_frame
-         in this section.)
-      */
+      /* The PE file section flag indicates whether the section contains code or data. */
       if (sectab_i->Characteristics & MYIMAGE_SCN_CNT_CODE ||
           sectab_i->Characteristics & MYIMAGE_SCN_CNT_INITIALIZED_DATA)
          kind = SECTIONKIND_CODE_OR_RODATA;
-#     endif
 
-      if (0==strcmp(".text",(char*)secname) ||
-          0==strcmp(".text.startup",(char*)secname) ||
-          0==strcmp(".text.unlikely", (char*)secname) ||
-          0==strcmp(".rdata",(char*)secname)||
-          0==strcmp(".eh_frame", (char*)secname)||
-          0==strcmp(".rodata",(char*)secname))
-         kind = SECTIONKIND_CODE_OR_RODATA;
-      if (0==strcmp(".data",(char*)secname) ||
-          0==strcmp(".bss",(char*)secname))
+      if (sectab_i->Characteristics & MYIMAGE_SCN_CNT_UNINITIALIZED_DATA)
          kind = SECTIONKIND_RWDATA;
       if (0==strcmp(".ctors", (char*)secname))
          kind = SECTIONKIND_INIT_ARRAY;
@@ -4414,37 +4398,7 @@ ocGetNames_PEi386 ( ObjectCode* oc )
       start = ((UChar*)(oc->image)) + sectab_i->PointerToRawData;
       end   = start + sz - 1;
 
-      if (kind == SECTIONKIND_OTHER
-          /* Ignore sections called which contain stabs debugging
-             information. */
-          && 0 != strcmp(".stab", (char*)secname)
-          && 0 != strcmp(".stabstr", (char*)secname)
-          /* Ignore sections called which contain exception information. */
-          && 0 != strncmp(".pdata", (char*)secname, 6)
-          && 0 != strncmp(".xdata", (char*)secname, 6)
-          /* ignore section generated from .ident */
-          && 0!= strncmp(".debug", (char*)secname, 6)
-          /* ignore unknown section that appeared in gcc 3.4.5(?) */
-          && 0!= strcmp(".reloc", (char*)secname)
-          && 0 != strcmp(".rdata$zzz", (char*)secname)
-          /* ignore linker directive sections */
-          && 0 != strcmp(".drectve", (char*)secname)
-         ) {
-          IF_DEBUG(linker, debugBelch("Unknown PEi386 section name `%s' (while processing: %" PATH_FMT").", secname, oc->fileName));
-          IF_DEBUG(linker, debugBelch("Attempt will be made to load section `%s` anyway as SECTIONKIND_CODE_OR_RODATA", secname));
-          kind = SECTIONKIND_CODE_OR_RODATA;
-      }
-
       if (kind != SECTIONKIND_OTHER && end >= start) {
-          /* Check if aligned by 4 by looking in the COFF Section header flag that we're not aligned by 1 or 2 */
-          UInt32 alignmentFlags = sectab_i->Characteristics & 0xF00000;
-
-          if (alignmentFlags == IMAGE_SCN_ALIGN_1BYTES || alignmentFlags == IMAGE_SCN_ALIGN_2BYTES) {
-              errorBelch("Misaligned section %s: %p. Flags: %d", (char*)secname, start, alignmentFlags);
-              stgFree(secname);
-              return 0;
-          }
-
          addSection(oc, kind, start, end);
          addProddableBlock(oc, start, end - start + 1);
       }
@@ -4461,10 +4415,8 @@ ocGetNames_PEi386 ( ObjectCode* oc )
    for (i = 0; i < oc->n_symbols; i++)
       oc->symbols[i] = NULL;
 
-   i = 0;
-   while (1) {
+   for (i = 0; i < oc->n_symbols; i++) {
       COFF_symbol* symtab_i;
-      if (i >= (Int32)(hdr->NumberOfSymbols)) break;
       symtab_i = (COFF_symbol*)
                  myindex ( sizeof_COFF_symbol, symtab, i );
 
@@ -4535,7 +4487,6 @@ ocGetNames_PEi386 ( ObjectCode* oc )
       }
 
       i += symtab_i->NumberOfAuxSymbols;
-      i++;
    }
 
    return 1;
@@ -4626,14 +4577,13 @@ ocResolve_PEi386 ( ObjectCode* oc )
 
       char *secname = cstring_from_section_name(sectab_i->Name, strtab);
 
-      /* Ignore sections called which contain stabs debugging
-         information. */
-      if (0 == strcmp(".stab", (char*)secname)
-          || 0 == strcmp(".stabstr", (char*)secname)
-          || 0 == strncmp(".pdata", (char*)secname, 6)
-          || 0 == strncmp(".xdata", (char*)secname, 6)
-          || 0 == strncmp(".debug", (char*)secname, 6)
-          || 0 == strcmp(".rdata$zzz", (char*)secname)) {
+    /* Ignore sections called which contain stabs debugging information. */
+    if ( 0 == strcmp(".stab", (char*)secname)
+      || 0 == strcmp(".stabstr", (char*)secname)
+      || 0 == strncmp(".pdata", (char*)secname, 6)
+      || 0 == strncmp(".xdata", (char*)secname, 6)
+      || 0 == strncmp(".debug", (char*)secname, 6)
+      || 0 == strcmp(".rdata$zzz", (char*)secname)) {
           stgFree(secname);
           continue;
       }
@@ -4763,6 +4713,7 @@ ocResolve_PEi386 ( ObjectCode* oc )
                }
             case 2: /* R_X86_64_PC32 - IMAGE_REL_AMD64_ADDR32 */
             case 3: /* R_X86_64_32S - IMAGE_REL_AMD64_ADDR32NB */
+            case 17: /* R_X86_64_32S ELF constant, no PE equivalent but relocation type is present in output */
                {
                    size_t v;
                    v = S + ((size_t)A);

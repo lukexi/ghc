@@ -3783,22 +3783,6 @@ typedef
 #define MYIMAGE_REL_I386_DIR32              0x0006
 #define MYIMAGE_REL_I386_REL32              0x0014
 
-/* From PE spec doc, section 3.1 */
-#define MYIMAGE_SCN_ALIGN_1BYTES            0x00100000
-#define MYIMAGE_SCN_ALIGN_2BYTES            0x00200000
-#define MYIMAGE_SCN_ALIGN_4BYTES            0x00300000
-#define MYIMAGE_SCN_ALIGN_8BYTES            0x00400000
-#define MYIMAGE_SCN_ALIGN_16BYTES           0x00500000
-#define MYIMAGE_SCN_ALIGN_32BYTES           0x00600000
-#define MYIMAGE_SCN_ALIGN_64BYTES           0x00700000
-#define MYIMAGE_SCN_ALIGN_128BYTES          0x00800000
-#define MYIMAGE_SCN_ALIGN_256BYTES          0x00900000
-#define MYIMAGE_SCN_ALIGN_512BYTES          0x00A00000
-#define MYIMAGE_SCN_ALIGN_1024BYTES         0x00B00000
-#define MYIMAGE_SCN_ALIGN_2048BYTES         0x00C00000
-#define MYIMAGE_SCN_ALIGN_4096BYTES         0x00D00000
-#define MYIMAGE_SCN_ALIGN_8192BYTES         0x00E00000
-
 static int verifyCOFFHeader ( COFF_header *hdr, pathchar *filename);
 
 /* We assume file pointer is right at the
@@ -4388,6 +4372,7 @@ ocGetNames_PEi386 ( ObjectCode* oc )
 
       if (sectab_i->Characteristics & MYIMAGE_SCN_CNT_UNINITIALIZED_DATA)
          kind = SECTIONKIND_RWDATA;
+
       if (0==strcmp(".ctors", (char*)secname))
          kind = SECTIONKIND_INIT_ARRAY;
 
@@ -4576,17 +4561,6 @@ ocResolve_PEi386 ( ObjectCode* oc )
            );
 
       char *secname = cstring_from_section_name(sectab_i->Name, strtab);
-
-    /* Ignore sections called which contain stabs debugging information. */
-    if ( 0 == strcmp(".stab", (char*)secname)
-      || 0 == strcmp(".stabstr", (char*)secname)
-      || 0 == strncmp(".pdata", (char*)secname, 6)
-      || 0 == strncmp(".xdata", (char*)secname, 6)
-      || 0 == strncmp(".debug", (char*)secname, 6)
-      || 0 == strcmp(".rdata$zzz", (char*)secname)) {
-          stgFree(secname);
-          continue;
-      }
 
       stgFree(secname);
 

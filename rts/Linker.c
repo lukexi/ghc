@@ -3772,12 +3772,14 @@ typedef
 #define MYIMAGE_SYM_CLASS_STATIC            3
 #define MYIMAGE_SYM_UNDEFINED               0
 
-/* From PE spec doc, section 4.1 */
+/* From PE spec doc, section 3.1 */
 #define MYIMAGE_SCN_CNT_CODE                0x00000020
 #define MYIMAGE_SCN_CNT_INITIALIZED_DATA    0x00000040
-#define MYIMAGE_SCN_CNT_UNINITIALIZED_DATA 0x00000080
+#define MYIMAGE_SCN_CNT_UNINITIALIZED_DATA  0x00000080
 #define MYIMAGE_SCN_LNK_COMDAT              0x00001000
 #define MYIMAGE_SCN_LNK_NRELOC_OVFL         0x01000000
+#define MYIMAGE_SCN_LNK_REMOVE              0x00000800
+#define MYIMAGE_SCN_MEM_DISCARDABLE         0x02000000
 
 /* From PE spec doc, section 5.2.1 */
 #define MYIMAGE_REL_I386_DIR32              0x0006
@@ -4370,8 +4372,14 @@ ocGetNames_PEi386 ( ObjectCode* oc )
           sectab_i->Characteristics & MYIMAGE_SCN_CNT_INITIALIZED_DATA)
          kind = SECTIONKIND_CODE_OR_RODATA;
 
+      /* Check next if it contains any uninitialized data */
       if (sectab_i->Characteristics & MYIMAGE_SCN_CNT_UNINITIALIZED_DATA)
          kind = SECTIONKIND_RWDATA;
+
+      /* Finally check if it can be discarded. This will also ignore .debug sections */
+      if (sectab_i->Characteristics & MYIMAGE_SCN_MEM_DISCARDABLE ||
+          sectab_i->Characteristics & MYIMAGE_SCN_LNK_REMOVE)
+          kind = SECTIONKIND_OTHER;
 
       if (0==strcmp(".ctors", (char*)secname))
          kind = SECTIONKIND_INIT_ARRAY;

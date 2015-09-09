@@ -1551,7 +1551,6 @@ def dump_stderr( name ):
 def read_no_crs(file):
     str = ''
     try:
-        time.sleep(1)
         h = open(file)
         str = h.read()
         h.close

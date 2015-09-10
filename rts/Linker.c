@@ -4571,7 +4571,7 @@ ocResolve_PEi386 ( ObjectCode* oc )
       char *secname = cstring_from_section_name(sectab_i->Name, strtab);
 
       /* Ignore sections called which contain stabs debugging information. */
-      if (0 == strcmp(".stab", (char*)secname)
+      if (    0 == strcmp(".stab", (char*)secname)
            || 0 == strcmp(".stabstr", (char*)secname)
            || 0 == strncmp(".pdata", (char*)secname, 6)
            || 0 == strncmp(".xdata", (char*)secname, 6)

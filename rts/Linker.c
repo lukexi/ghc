@@ -4357,8 +4357,9 @@ ocGetNames_PEi386 ( ObjectCode* oc )
       UChar* end;
       UInt32 sz;
 
+      /* By default consider all section as CODE or DATA, which means we want to load them. */
       SectionKind kind
-         = SECTIONKIND_OTHER;
+          = SECTIONKIND_CODE_OR_RODATA;
       COFF_section* sectab_i
          = (COFF_section*)
            myindex ( sizeof_COFF_section, sectab, i );
